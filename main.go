@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -13,34 +14,31 @@ var contributions = make(map[string]int)
 
 func main() {
 	process := make(chan string)
-	authorChan := make(chan string)
+	authorChan := make(chan string, 10)
 	go scanFolder("./", process)
-
-	go func() {
-	ProcessAuthor:
-		for {
-			select {
-			case author := <-authorChan:
-				if author == "DONE" {
-					break ProcessAuthor
-				}
-				countContribution(author)
-			}
-		}
-	}()
 
 ProcessFile:
 	for {
 		select {
 		case fileLocation := <-process:
-			checkAuthor(fileLocation, authorChan)
 			if fileLocation == "DONE" {
 				break ProcessFile
+			} else {
+				go checkAuthor(fileLocation, authorChan)
+			}
+		}
+
+		select {
+		case author := <-authorChan:
+			if author == "DONE" {
+				close(authorChan)
+			} else {
+				countContribution(author)
 			}
 		}
 	}
 
-	fmt.Println(contributions)
+	printContributors(contributions)
 }
 
 func scanFolder(root string, process chan string) {
@@ -89,7 +87,10 @@ func checkAuthor(filePath string, process chan string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Println("file in checkAuthor", filePath)
 	process <- parseAuthor(string(output))
+
 }
 
 func parseAuthor(outputMessage string) string {
@@ -113,4 +114,10 @@ func sliceContain(searchValue string, slice []string) bool {
 		}
 	}
 	return false
+}
+
+func printContributors(contributions map[string]int) {
+	for contributor := range contributions {
+		fmt.Println("Contributor: " + contributor + " has contributed " + strconv.Itoa(contributions[contributor]) + " files")
+	}
 }
