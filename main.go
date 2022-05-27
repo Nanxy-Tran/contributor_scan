@@ -9,12 +9,12 @@ import (
 	"strings"
 )
 
-var ignoreFiles = []string{".git", ".idea"}
+var ignoreFiles = []string{".git", ".idea", ".jest", ".codeclimate.yml", "node_modules", "android/", "ios/", "coverage/"}
 var contributions = make(map[string]int)
 
 func main() {
 	process := make(chan string)
-	authorChan := make(chan string, 10)
+	authorChan := make(chan []string, 10)
 	go scanFolder("./", process)
 
 ProcessFile:
@@ -29,12 +29,8 @@ ProcessFile:
 		}
 
 		select {
-		case author := <-authorChan:
-			if author == "DONE" {
-				close(authorChan)
-			} else {
-				countContribution(author)
-			}
+		case authors := <-authorChan:
+			countContribution(authors)
 		}
 	}
 
@@ -48,6 +44,7 @@ func scanFolder(root string, process chan string) {
 		log.Fatal(err.Error())
 	}
 
+LOOP:
 	for _, file := range files {
 		var filePath string
 		if root == "./" {
@@ -56,8 +53,10 @@ func scanFolder(root string, process chan string) {
 			filePath = root + "/" + file.Name()
 		}
 
-		if sliceContain(file.Name(), ignoreFiles) {
-			continue
+		for _, ignore := range ignoreFiles {
+			if strings.Contains(filePath, ignore) {
+				continue LOOP
+			}
 		}
 
 		if file.IsDir() {
@@ -75,9 +74,9 @@ func scanFolder(root string, process chan string) {
 	return
 }
 
-func checkAuthor(filePath string, process chan string) {
+func checkAuthor(filePath string, process chan []string) {
 	if filePath == "DONE" {
-		process <- "DONE"
+		close(process)
 		return
 	}
 
@@ -88,23 +87,27 @@ func checkAuthor(filePath string, process chan string) {
 		log.Fatal(err)
 	}
 
-	fmt.Println("file in checkAuthor", filePath)
+	//fmt.Println("file: ", filePath)
 	process <- parseAuthor(string(output))
-
 }
 
-func parseAuthor(outputMessage string) string {
-	author := strings.Split(outputMessage, "author ")[1]
-	return author
+func parseAuthor(outputMessage string) []string {
+	authors := strings.Split(strings.TrimSpace(outputMessage), "author ")
+	fmt.Println(authors)
+	return authors
 }
 
-func countContribution(author string) {
-	if _, ok := contributions[author]; ok {
-		contributions[author]++
-	} else {
-		contributions[author] = 1
+func countContribution(authors []string) {
+	for _, author := range authors {
+		if author == "" {
+			continue
+		}
+		if _, ok := contributions[author]; ok {
+			contributions[author]++
+		} else {
+			contributions[author] = 1
+		}
 	}
-
 }
 
 func sliceContain(searchValue string, slice []string) bool {
