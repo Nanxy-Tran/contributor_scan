@@ -5,12 +5,16 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 )
 
 var ignoreFiles = []string{".git", ".idea", ".jest", ".codeclimate.yml", "node_modules", "android/", "ios/", "coverage/"}
-var contributions = make(map[string]int)
+
+type Contributions map[string]int
+
+var contributions = make(Contributions)
 
 func main() {
 	process := make(chan string)
@@ -34,7 +38,7 @@ ProcessFile:
 		}
 	}
 
-	printContributors(contributions)
+	printContributors(contributions.sort())
 }
 
 func scanFolder(root string, process chan string) {
@@ -102,25 +106,47 @@ func countContribution(authors []string) {
 		if author == "" {
 			continue
 		}
-		if _, ok := contributions[author]; ok {
-			contributions[author]++
+		trimmedAuthor := strings.TrimSpace(author)
+
+		if _, ok := contributions[trimmedAuthor]; ok {
+			contributions[trimmedAuthor]++
 		} else {
-			contributions[author] = 1
+			contributions[trimmedAuthor] = 1
 		}
 	}
 }
 
-func sliceContain(searchValue string, slice []string) bool {
-	for _, item := range slice {
-		if item == searchValue {
-			return true
-		}
-	}
-	return false
+//
+//func sliceContain(searchValue string, slice []string) bool {
+//	for _, item := range slice {
+//		if item == searchValue {
+//			return true
+//		}
+//	}
+//	return false
+//}
+
+type sortStruct struct {
+	Key   string
+	Value int
 }
 
-func printContributors(contributions map[string]int) {
-	for contributor := range contributions {
-		fmt.Println("Contributor: " + contributor + " has contributed " + strconv.Itoa(contributions[contributor]) + " files")
+func (array Contributions) sort() []sortStruct {
+
+	var collection []sortStruct
+	for key, value := range array {
+		collection = append(collection, sortStruct{key, value})
+	}
+
+	sort.Slice(collection, func(i, j int) bool {
+		return collection[i].Value > collection[j].Value
+	})
+
+	return collection
+}
+
+func printContributors(contributions []sortStruct) {
+	for _, contributor := range contributions {
+		fmt.Println("Contributor: " + contributor.Key + " has contributed " + strconv.Itoa(contributor.Value) + " files")
 	}
 }
