@@ -8,49 +8,54 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
-var ignoreFiles = []string{".git", ".idea", ".jest", ".codeclimate.yml", "node_modules", "android/", "ios/", "coverage/"}
+var ignoreFiles = []string{".gitignore", ".git", ".idea", ".jest", ".codeclimate.yml", "node_modules", "android/", "ios/", "coverage/"}
 
 type Contributions map[string]int
 
 var contributions = make(Contributions)
 
 func main() {
-	process := make(chan string)
-	authorChan := make(chan []string, 10)
-	go scanFolder("./", process)
+	start := time.Now()
+	filesChan := make(chan string)
+	authorsChan := make(chan []string, 1000)
 
-ProcessFile:
+	go scanFolder("./", filesChan)
+
+	go func() {
+		for path := range filesChan {
+			fmt.Println("Checking at path", path)
+			go checkAuthor(path, authorsChan)
+		}
+	}()
+
+CHECK:
 	for {
 		select {
-		case fileLocation := <-process:
-			if fileLocation == "DONE" {
-				break ProcessFile
-			} else {
-				go checkAuthor(fileLocation, authorChan)
-			}
-		}
-
-		select {
-		case authors := <-authorChan:
+		case authors := <-authorsChan:
 			countContribution(authors)
+		case <-time.After(1 * time.Second):
+			break CHECK
 		}
 	}
 
 	printContributors(contributions.sort())
+	fmt.Printf("Executed in %s", time.Since(start))
 }
 
-func scanFolder(root string, process chan string) {
+func scanFolder(root string, fileChan chan<- string) {
 	files, err := ioutil.ReadDir(root)
 
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-LOOP:
+FILES_LOOP:
 	for _, file := range files {
 		var filePath string
+
 		if root == "./" {
 			filePath = root + file.Name()
 		} else {
@@ -59,45 +64,34 @@ LOOP:
 
 		for _, ignore := range ignoreFiles {
 			if strings.Contains(filePath, ignore) {
-				continue LOOP
+				continue FILES_LOOP
 			}
 		}
 
 		if file.IsDir() {
-			scanFolder(filePath, process)
-			continue
+			scanFolder(filePath, fileChan)
+		} else {
+			fileChan <- filePath
 		}
-
-		process <- filePath
 	}
 
 	if root == "./" {
-		process <- "DONE"
+		close(fileChan)
 	}
-
-	return
 }
 
-func checkAuthor(filePath string, process chan []string) {
-	if filePath == "DONE" {
-		close(process)
-		return
-	}
-
+func checkAuthor(filePath string, authorsChan chan<- []string) {
 	cmd := exec.Command("bash", "-c", "git blame "+filePath+" --porcelain | grep '^author ' | sort -u")
 	output, err := cmd.CombinedOutput()
-
+	fmt.Println("Git blame for ", filePath)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	//fmt.Println("file: ", filePath)
-	process <- parseAuthor(string(output))
+	authorsChan <- parseAuthor(string(output))
 }
 
 func parseAuthor(outputMessage string) []string {
 	authors := strings.Split(strings.TrimSpace(outputMessage), "author ")
-	fmt.Println(authors)
 	return authors
 }
 
