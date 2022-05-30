@@ -20,24 +20,23 @@ var contributions = make(Contributions)
 func main() {
 	start := time.Now()
 	filesChan := make(chan string)
-	authorsChan := make(chan []string, 1000)
+	var authorsChan chan (<-chan []string)
+	authorsChan = make(chan (<-chan []string), 50)
 
 	go scanFolder("./", filesChan)
 
 	go func() {
+		defer close(authorsChan)
 		for path := range filesChan {
 			fmt.Println("Checking at path", path)
-			go checkAuthor(path, authorsChan)
+			authorsChan <- checkAuthor(path)
 		}
 	}()
 
-CHECK:
-	for {
+	for authors := range authorsChan {
 		select {
-		case authors := <-authorsChan:
-			countContribution(authors)
-		case <-time.After(1 * time.Second):
-			break CHECK
+		case authorsString := <-authors:
+			countContribution(authorsString)
 		}
 	}
 
@@ -80,14 +79,20 @@ FILES_LOOP:
 	}
 }
 
-func checkAuthor(filePath string, authorsChan chan<- []string) {
-	cmd := exec.Command("bash", "-c", "git blame "+filePath+" --porcelain | grep '^author ' | sort -u")
-	output, err := cmd.CombinedOutput()
-	fmt.Println("Git blame for ", filePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	authorsChan <- parseAuthor(string(output))
+func checkAuthor(filePath string) <-chan []string {
+	authorChan := make(chan []string)
+	go func() {
+		defer close(authorChan)
+		cmd := exec.Command("bash", "-c", "git blame "+filePath+" --porcelain | grep '^author ' | sort -u")
+		output, err := cmd.CombinedOutput()
+		fmt.Println("Git blame for ", filePath)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		authorChan <- parseAuthor(string(output))
+	}()
+	return authorChan
 }
 
 func parseAuthor(outputMessage string) []string {
