@@ -9,13 +9,8 @@ import (
 	"strings"
 )
 
-type BlameResult struct {
-	FilePath string
-	Author   string
-}
-
-func checkAuthor(filePath string) <-chan BlameResult {
-	authorChan := make(chan BlameResult, 50)
+func checkAuthor(filePath string) <-chan LineResult {
+	authorChan := make(chan LineResult, 50)
 
 	go func() {
 		defer close(authorChan)
@@ -33,9 +28,9 @@ func checkAuthor(filePath string) <-chan BlameResult {
 	return authorChan
 }
 
-func parseAuthor(output string, filePath string) BlameResult {
+func parseAuthor(output string, filePath string) LineResult {
 	var outputArr = strings.Split(output, " ")
-	var result = BlameResult{
+	var result = LineResult{
 		FilePath: filePath,
 	}
 
@@ -50,7 +45,7 @@ func parseAuthor(output string, filePath string) BlameResult {
 	return result
 }
 
-func generateGitOwnerFile(owners []BlameResult, outputFileName string) string {
+func generateGitOwnerFile(owners []LineResult, outputFileName string) string {
 	file, err := os.Create(outputFileName)
 	if err != nil {
 		log.Fatal(err.Error())

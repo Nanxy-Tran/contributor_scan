@@ -2,30 +2,104 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math"
+	"os/exec"
 	"regexp"
 	"time"
 )
 
-type Contributions map[string]int
-type LineResultChannel chan
+//type Contributions map[string]int
+type LineResult struct {
+	FilePath  string
+	Author    string
+	RawString string
+}
 
 //var contributions = make(Contributions)
 
-var result []string
+type LineCrawler interface {
+	scan(filePath string) <-chan LineResult
+}
+
+type GitCrawler struct {
+	config interface{}
+}
+
+type RawStringCrawler struct {
+	name      string
+	predicate func()
+}
+
+func (scanner *GitCrawler) scan(filePath string) <-chan LineResult {
+	authorChan := make(chan LineResult, 50)
+
+	go func() {
+		defer close(authorChan)
+		cmd := exec.Command("bash", "-c", "git blame "+filePath+" --porcelain | sed 's/author //p' | sort | uniq -c| sort -rn | head -n 1 | sed 's/[0-9]*//g'")
+		output, err := cmd.CombinedOutput()
+
+		fmt.Println("Git blaming.... ", filePath)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		authorChan <- parseAuthor(string(output), filePath)
+	}()
+	return authorChan
+}
+
+func (scanner *RawStringCrawler) scan(filePath string) <-chan LineResult {
+	lineChan := make(chan LineResult, 50)
+
+	fileLines, err := readLines(filePath)
+
+	if err != nil {
+		defer close(lineChan)
+		return lineChan
+	}
+
+	go func() {
+		defer close(lineChan)
+		regex := regexp.MustCompile(descriptionRegex)
+		for _, line := range fileLines {
+			descriptionLine := regex.FindString(line)
+			if descriptionLine != "" {
+				lineChan <- LineResult{FilePath: filePath}
+				return
+			}
+		}
+
+		lineChan <- LineResult{FilePath: filePath}
+	}()
+
+	return lineChan
+}
+
+//TODO: Init the predicate
+func LineCrawlerFactory(crawler string) LineCrawler {
+	if crawler == "git" {
+		return &GitCrawler{config: "git"}
+	} else {
+		return &RawStringCrawler{name: "line"}
+	}
+}
+
+var result []LineResult
 
 func main() {
 	start := time.Now()
 	filesChan := make(chan string)
-	var lineChans chan (<-chan string)
-	lineChans = make(chan (<-chan string), 50)
+	var lineChans chan (<-chan LineResult)
+	lineChans = make(chan (<-chan LineResult), 50)
 
 	go scanFolder("./", filesChan)
 
 	go func() {
 		defer close(lineChans)
 		for path := range filesChan {
-			lineChans <- checkAuthor(path)
+			fmt.Println("Checking.... ", path)
+			lineChans <- checkLines(path)
 		}
 	}()
 
@@ -49,33 +123,6 @@ func main() {
 	fmt.Println("Number of documentation files: ", len(documentedFiles))
 	fmt.Println("Documentation coverage: ", math.Round(float64(len(documentedFiles))/float64(len(result))*100), " %")
 	fmt.Printf("Executed in %s", time.Since(start))
-}
-
-func checkLines(filePath string) <-chan string {
-	lineChan := make(chan string, 50)
-
-	fileLines, err := readLines(filePath)
-
-	if err != nil {
-		defer close(lineChan)
-		return lineChan
-	}
-
-	go func() {
-		defer close(lineChan)
-		regex := regexp.MustCompile(descriptionRegex)
-		for _, line := range fileLines {
-			descriptionLine := regex.FindString(line)
-			if descriptionLine != "" {
-				lineChan <- filePath
-				return
-			}
-		}
-
-		lineChan <- "NO DESCRIPTION FOUND"
-	}()
-
-	return lineChan
 }
 
 func appendValidLine(path string) {

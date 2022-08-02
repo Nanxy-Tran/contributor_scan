@@ -6,13 +6,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 )
 
 var ignoreFiles = []string{".gitignore", ".git", ".idea", ".jest", ".codeclimate.yml", "node_modules", "android/", "ios/", "coverage/"}
 var typescriptFileExtensions = []string{".tsx", ".ts"}
 
-func scanFolder(root string, fileChan chan<- LineResultChannel) {
+func scanFolder(root string, fileChan chan<- string) {
 	files, err := ioutil.ReadDir(root)
 
 	if err != nil {
@@ -66,4 +67,31 @@ func readLines(path string) ([]string, error) {
 		lines = append(lines, scanner.Text())
 	}
 	return lines, scanner.Err()
+}
+
+func checkLines(filePath string) <-chan LineResult {
+	lineChan := make(chan string, 50)
+
+	fileLines, err := readLines(filePath)
+
+	if err != nil {
+		defer close(lineChan)
+		return LineResult{FilePath: filePath}
+	}
+
+	go func() {
+		defer close(lineChan)
+		regex := regexp.MustCompile(descriptionRegex)
+		for _, line := range fileLines {
+			descriptionLine := regex.FindString(line)
+			if descriptionLine != "" {
+				lineChan <- filePath
+				return
+			}
+		}
+
+		lineChan <- "NO DESCRIPTION FOUND"
+	}()
+
+	return lineChan
 }
