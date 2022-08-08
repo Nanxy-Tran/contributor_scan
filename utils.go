@@ -1,7 +1,6 @@
 package main
 
 import (
-	"sort"
 	"strings"
 )
 
@@ -10,19 +9,19 @@ type sortStruct struct {
 	Value int
 }
 
-func (array Contributions) sort() []sortStruct {
-
-	var collection []sortStruct
-	for key, value := range array {
-		collection = append(collection, sortStruct{key, value})
-	}
-
-	sort.Slice(collection, func(i, j int) bool {
-		return collection[i].Value > collection[j].Value
-	})
-
-	return collection
-}
+//func (array Contributions) sort() []sortStruct {
+//
+//	var collection []sortStruct
+//	for key, value := range array {
+//		collection = append(collection, sortStruct{key, value})
+//	}
+//
+//	sort.Slice(collection, func(i, j int) bool {
+//		return collection[i].Value > collection[j].Value
+//	})
+//
+//	return collection
+//}
 
 func filter(arr []string, key string) []string {
 	var result []string

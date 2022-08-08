@@ -9,33 +9,77 @@ import (
 	"strings"
 )
 
-type BlameResult struct {
-	FilePath string
-	Author   string
+type LineResult struct {
+	FilePath  string
+	Author    string
+	RawString string
+	Error     error
 }
 
-func checkAuthor(filePath string) <-chan BlameResult {
-	authorChan := make(chan BlameResult, 50)
+type GitParser struct {
+	method string
+}
+
+func (parser *GitParser) execute(fileChanel <-chan string) {
+	if parser.method == "owner" {
+		lineChannel := make(chan (<-chan LineResult), 10)
+		for path := range fileChanel {
+			fmt.Println(path)
+			lineChannel <- checkAuthor(path)
+		}
+
+		close(lineChannel)
+
+		var result []LineResult
+
+		for lineChan := range lineChannel {
+			select {
+			case line := <-lineChan:
+				fmt.Println("Line: ", line)
+				result = append(result, line)
+			}
+		}
+
+		for lineChan := range lineChannel {
+			select {
+			case line := <-lineChan:
+				result = append(result, line)
+			default:
+			}
+		}
+		fmt.Println("get ger")
+		printGitResult(result)
+		return
+	}
+
+	if parser.method == "contribute" {
+		//TODO:
+	}
+}
+
+func checkAuthor(filePath string) <-chan LineResult {
+	authorChan := make(chan LineResult, 50)
 
 	go func() {
 		defer close(authorChan)
 		cmd := exec.Command("bash", "-c", "git blame "+filePath+" --porcelain | sed 's/author //p' | sort | uniq -c| sort -rn | head -n 1 | sed 's/[0-9]*//g'")
 		output, err := cmd.CombinedOutput()
 
-		fmt.Println("Git blaming.... ", filePath)
 		if err != nil {
 			log.Fatal(err)
 			return
 		}
+		fmt.Println("Git blaming.... ", filePath)
+
 		authorChan <- parseAuthor(string(output), filePath)
 	}()
 
 	return authorChan
 }
 
-func parseAuthor(output string, filePath string) BlameResult {
+func parseAuthor(output string, filePath string) LineResult {
 	var outputArr = strings.Split(output, " ")
-	var result = BlameResult{
+	var result = LineResult{
 		FilePath: filePath,
 	}
 
@@ -50,7 +94,7 @@ func parseAuthor(output string, filePath string) BlameResult {
 	return result
 }
 
-func generateGitOwnerFile(owners []BlameResult, outputFileName string) string {
+func generateGitOwnerFile(owners []LineResult, outputFileName string) string {
 	file, err := os.Create(outputFileName)
 	if err != nil {
 		log.Fatal(err.Error())
@@ -69,8 +113,11 @@ func generateGitOwnerFile(owners []BlameResult, outputFileName string) string {
 
 //var descriptionRegex = "\\/\\*\\*"
 
-//func printContributors(contributions []sortStruct) {
-//	for _, contributor := range contributions {
-//		fmt.Println("Contributor: " + contributor.Key + " has contributed " + strconv.Itoa(contributor.Value) + " files")
-//	}
-//}
+func printGitResult(results []LineResult) {
+	for _, result := range results {
+		if result.Error != nil {
+			continue
+		}
+		fmt.Printf("%s @%s", result.FilePath, result.Author)
+	}
+}

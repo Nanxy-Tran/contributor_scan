@@ -1,81 +1,86 @@
 package main
 
-import (
-	"fmt"
-	"math"
-	"regexp"
-	"time"
-)
-
-type Contributions map[string]int
-type LineResultChannel chan
-
-//var contributions = make(Contributions)
-
-var result []string
-
-func main() {
-	start := time.Now()
-	filesChan := make(chan string)
-	var lineChans chan (<-chan string)
-	lineChans = make(chan (<-chan string), 50)
-
-	go scanFolder("./", filesChan)
-
-	go func() {
-		defer close(lineChans)
-		for path := range filesChan {
-			lineChans <- checkAuthor(path)
-		}
-	}()
-
-	for lineChan := range lineChans {
-		select {
-		case line := <-lineChan:
-			result = append(result, line)
-		}
-	}
-
-	for lineChan := range lineChans {
-		select {
-		case line := <-lineChan:
-			result = append(result, line)
-		default:
-		}
-	}
-
-	fmt.Println("Total typescript files: ", len(result))
-	var documentedFiles = filter(result, "NO DESCRIPTION FOUND")
-	fmt.Println("Number of documentation files: ", len(documentedFiles))
-	fmt.Println("Documentation coverage: ", math.Round(float64(len(documentedFiles))/float64(len(result))*100), " %")
-	fmt.Printf("Executed in %s", time.Since(start))
+type LineParser interface {
+	execute(fileChannel <-chan string)
 }
 
-func checkLines(filePath string) <-chan string {
-	lineChan := make(chan string, 50)
+//func (scanner *RawStringCrawler) scan(filePath string) <-chan LineResult {
+//	lineChan := make(chan LineResult, 50)
+//
+//	fileLines, err := readLines(filePath)
+//
+//	if err != nil {
+//		defer close(lineChan)
+//		return lineChan
+//	}
+//
+//	go func() {
+//		defer close(lineChan)
+//		regex := regexp.MustCompile(descriptionRegex)
+//		for _, line := range fileLines {
+//			descriptionLine := regex.FindString(line)
+//			if descriptionLine != "" {
+//				lineChan <- LineResult{FilePath: filePath}
+//				return
+//			}
+//		}
+//
+//		lineChan <- LineResult{FilePath: filePath}
+//	}()
+//
+//	return lineChan
+//}
 
-	fileLines, err := readLines(filePath)
+// LineCrawlerFactory TODO: Init the predicate
+func LineParserFactory(crawler string) LineParser {
+	return &GitParser{method: "owner"}
+}
 
-	if err != nil {
-		defer close(lineChan)
-		return lineChan
-	}
+func main() {
+	//start := time.Now()
+	//filesChan := make(chan string, 10)
+	//var lineChans chan (<-chan LineResult)
+	//lineChans = make(chan (<-chan LineResult), 50)
 
-	go func() {
-		defer close(lineChan)
-		regex := regexp.MustCompile(descriptionRegex)
-		for _, line := range fileLines {
-			descriptionLine := regex.FindString(line)
-			if descriptionLine != "" {
-				lineChan <- filePath
-				return
-			}
-		}
+	crawler := FileCrawler{ignoreFiles: ignoreFiles}
+	crawler.scan("./")
+	parser := LineParserFactory("counter")
+	parser.execute(crawler.fileChannels)
 
-		lineChan <- "NO DESCRIPTION FOUND"
-	}()
+	//go scanFolder("./", filesChan)
+	//
+	//totalLines := countLines(filesChan)
+	////totalLines := countLines(filesChan)
+	//fmt.Println("Number of lines: ", totalLines)
 
-	return lineChan
+	//go func() {
+	//	defer close(lineChans)
+	//	for path := range filesChan {
+	//		fmt.Println("Checking.... ", path)
+	//		lineChans <- checkLines(path)
+	//	}
+	//}()
+	//
+	//for lineChan := range lineChans {
+	//	select {
+	//	case line := <-lineChan:
+	//		result = append(result, line)
+	//	}
+	//}
+	//
+	//for lineChan := range lineChans {
+	//	select {
+	//	case line := <-lineChan:
+	//		result = append(result, line)
+	//	default:
+	//	}
+	//}
+	//
+	//fmt.Println("Total typescript files: ", len(result))
+	//var documentedFiles = filter(result, "NO DESCRIPTION FOUND")
+	//fmt.Println("Number of documentation files: ", len(documentedFiles))
+	//fmt.Println("Documentation coverage: ", math.Round(float64(len(documentedFiles))/float64(len(result))*100), " %")
+	//fmt.Printf("Executed in %s", time.Since(start))
 }
 
 func appendValidLine(path string) {
