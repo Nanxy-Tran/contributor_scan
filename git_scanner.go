@@ -11,7 +11,7 @@ import (
 
 type LineResult struct {
 	FilePath  string
-	Author    string
+	Author    string ""
 	RawString string
 	Error     error
 }
@@ -23,19 +23,19 @@ type GitParser struct {
 func (parser *GitParser) execute(fileChanel <-chan string) {
 	if parser.method == "owner" {
 		lineChannel := make(chan (<-chan LineResult), 10)
-		for path := range fileChanel {
-			fmt.Println(path)
-			lineChannel <- checkAuthor(path)
-		}
 
-		close(lineChannel)
+		go func() {
+			defer close(lineChannel)
+			for path := range fileChanel {
+				lineChannel <- checkAuthor(path)
+			}
+		}()
 
 		var result []LineResult
 
 		for lineChan := range lineChannel {
 			select {
 			case line := <-lineChan:
-				fmt.Println("Line: ", line)
 				result = append(result, line)
 			}
 		}
@@ -47,7 +47,7 @@ func (parser *GitParser) execute(fileChanel <-chan string) {
 			default:
 			}
 		}
-		fmt.Println("get ger")
+
 		printGitResult(result)
 		return
 	}
@@ -58,39 +58,35 @@ func (parser *GitParser) execute(fileChanel <-chan string) {
 }
 
 func checkAuthor(filePath string) <-chan LineResult {
-	authorChan := make(chan LineResult, 50)
+	authorChan := make(chan LineResult)
 
 	go func() {
 		defer close(authorChan)
-		cmd := exec.Command("bash", "-c", "git blame "+filePath+" --porcelain | sed 's/author //p' | sort | uniq -c| sort -rn | head -n 1 | sed 's/[0-9]*//g'")
+		cmd := exec.Command("bash", "-c", "git blame "+filePath+" --line-porcelain | sed -n -e 's/author //p' | sort | uniq -c| sort -rn | head -n 2 | sed 's/[0-9]*//g'")
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
 			log.Fatal(err)
 			return
 		}
-		fmt.Println("Git blaming.... ", filePath)
-
-		authorChan <- parseAuthor(string(output), filePath)
+		authorChan <- parseAuthors(string(output), filePath)
 	}()
 
 	return authorChan
 }
 
-func parseAuthor(output string, filePath string) LineResult {
-	var outputArr = strings.Split(output, " ")
+func parseAuthors(output string, filePath string) LineResult {
+	var outputTrimmed = strings.TrimSpace(output)
+	var outputArr = strings.Split(outputTrimmed, "  ")
+
 	var result = LineResult{
 		FilePath: filePath,
 	}
 
 	for _, item := range outputArr {
-		if item != "" {
-			result.Author = item
-			return result
-		}
+		result.Author = result.Author + " " + "@" + strings.TrimSpace(item)
 	}
 
-	result.Author = ""
 	return result
 }
 
@@ -101,7 +97,7 @@ func generateGitOwnerFile(owners []LineResult, outputFileName string) string {
 	}
 	var message string
 	for _, owner := range owners {
-		message = message + fmt.Sprintf("%s @%s", owner.FilePath, owner.Author) + "\n"
+		message = message + fmt.Sprintf("%s %s", owner.FilePath, owner.Author) + "\n"
 	}
 
 	err = ioutil.WriteFile(file.Name(), []byte(message), 0644)
@@ -118,6 +114,6 @@ func printGitResult(results []LineResult) {
 		if result.Error != nil {
 			continue
 		}
-		fmt.Printf("%s @%s", result.FilePath, result.Author)
+		fmt.Printf("%s %s \n", result.FilePath, result.Author)
 	}
 }

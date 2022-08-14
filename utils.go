@@ -34,3 +34,15 @@ func filter(arr []string, key string) []string {
 	}
 	return result
 }
+
+func remove_space_arr(arr []string) []string {
+	var result []string
+	for _, item := range arr {
+		if item == " " || item == "" {
+			continue
+		} else {
+			result = append(result, item)
+		}
+	}
+	return result
+}
