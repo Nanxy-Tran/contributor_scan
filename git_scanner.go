@@ -66,7 +66,7 @@ func checkAuthor(filePath string) <-chan LineResult {
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println("Git error: ", err.Error())
 			return
 		}
 		authorChan <- parseAuthors(string(output), filePath)

@@ -43,7 +43,7 @@ func main() {
 	//lineChans = make(chan (<-chan LineResult), 50)
 
 	crawler := FileCrawler{ignoreFiles: ignoreFiles}
-	crawler.scan("./")
+	crawler.scan(".")
 	parser := LineParserFactory("counter")
 	parser.execute(crawler.fileChannels)
 

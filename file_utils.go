@@ -17,7 +17,7 @@ type FileCrawler struct {
 }
 
 func (scanner *FileCrawler) scan(root string) {
-	fileChannels := make(chan string, 10)
+	fileChannels := make(chan string)
 	go scanner.scanFolder(root, fileChannels)
 
 	scanner.fileChannels = fileChannels
@@ -32,14 +32,7 @@ func (scanner *FileCrawler) scanFolder(root string, fileChan chan<- string) {
 
 FILES_LOOP:
 	for _, file := range files {
-		var filePath string
-
-		if root == "./" {
-			filePath = root + file.Name()
-		} else {
-			filePath = root + "/" + file.Name()
-		}
-
+		var filePath = root + "/" + file.Name()
 		for _, ignore := range scanner.ignoreFiles {
 			if strings.Contains(filePath, ignore) {
 				continue FILES_LOOP
@@ -61,7 +54,7 @@ FILES_LOOP:
 		}
 	}
 
-	if root == "./" {
+	if root == "." {
 		close(fileChan)
 	}
 }
