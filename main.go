@@ -2,52 +2,31 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"regexp"
 	"time"
 )
 
 type Contributions map[string]int
-type LineResultChannel chan
+type LineResultChannel chan LineResult
 
 //var contributions = make(Contributions)
-
-var result []string
+/**
+Git owner
+Git author contributions
+Line counts
+Graph ?
+*/
 
 func main() {
 	start := time.Now()
 	filesChan := make(chan string)
-	var lineChans chan (<-chan string)
-	lineChans = make(chan (<-chan string), 50)
+	parser := parserFactory("git")
+	parser.construct()
 
-	go scanFolder("./", filesChan)
+	processor := fileProcessorFactory("owner")
+	go parser.scanFolder("./", filesChan)
 
-	go func() {
-		defer close(lineChans)
-		for path := range filesChan {
-			lineChans <- checkAuthor(path)
-		}
-	}()
-
-	for lineChan := range lineChans {
-		select {
-		case line := <-lineChan:
-			result = append(result, line)
-		}
-	}
-
-	for lineChan := range lineChans {
-		select {
-		case line := <-lineChan:
-			result = append(result, line)
-		default:
-		}
-	}
-
-	fmt.Println("Total typescript files: ", len(result))
-	var documentedFiles = filter(result, "NO DESCRIPTION FOUND")
-	fmt.Println("Number of documentation files: ", len(documentedFiles))
-	fmt.Println("Documentation coverage: ", math.Round(float64(len(documentedFiles))/float64(len(result))*100), " %")
+	processor.execute(filesChan)
 	fmt.Printf("Executed in %s", time.Since(start))
 }
 
