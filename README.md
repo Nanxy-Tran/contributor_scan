@@ -1,16 +1,16 @@
-# Contribution scanner 🔎
-## Counting member contribution and who contributed most will buy team beers 🍻😘 . 
+# Git owner file generator 🔎
+## Description
+Auto generate output contains file paths and owners of that files (copy paste to your repo without reformat). 
+Maximum 2 owners per file, specific number is under working :wink
 
-### Description
-*This side project is an example of my learning method, reading should come along with practice, because it's fun and help us strongly grasp the lessons*.<br> 
-Scan through repository and using git blame to identify author contributions. <br>
-With the concurrency pattern we only need ~50s to complete a big project (I believe so), but without concurrency, we may need about ~2m30s.<br>
-After writing this READ, I got some new ideas about flag args for CLI to count how many lines of code in the repo. Let's do it
-
+### Installation
+#### Make sure you have installed GO 1.18 on your machine
+- Install locally: <br>
+  1. Clone this repo <br>
+  2. At cloned repo: `go install` to install at your GO PATH <br>
+- Install globally:
+  1. **Set your GOPATH** in `zshrc`, `bash_rc`, etc,..
+  2. `go install github.com/nanxy-tran/contributor_scan` <br>
 ### Usage
-**CLI**
-    Install globally: <br>
-        1. Make sure you have installed GO 1.18 on your machine <br>
-        2. Clone this repo <br>
-        3. At root directory: run `go install` <br>
-        4. At your desired directory: run `scanner` and see the result.
+    At your desired directory: run `contributor_scan`.
+
