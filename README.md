@@ -2,19 +2,20 @@
 Auto generate output contains file paths and owners of that files (copy paste to your repo without reformat). 
 Maximum 2 owners per file, specific number is under working :wink
 
-## Installation <br />
-### Make sure you have installed GO 1.18 on your machine 
-- Install locally: <br>
-  ```shell
-    git clone https://github.com/Nanxy-Tran/contributor_scan.git  
-    cd contributor_scan
-    go install
-  ```
-- Install globally: <br />
-  Make sure you et your **GOPATH** in `zshrc`, `bash_rc`, etc,..
-  ```shell
-    go install github.com/nanxy-tran/contributor_scan
-  ```
+## Installation <br /> 
+*Make sure you have installed GO 1.18 on your machine*
+### Install locally
+```shell
+git clone https://github.com/Nanxy-Tran/contributor_scan.git  
+cd contributor_scan
+go install
+```
+
+### Install globally
+Make sure you et your **GOPATH** in `zshrc`, `bash_rc`, etc,..
+```shell
+go install github.com/nanxy-tran/contributor_scan
+```
   
 ## Usage
 At your desired directory, run: <br>
