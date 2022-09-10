@@ -1,24 +1,33 @@
-# Git owner file generator 🔎
-## Description
+# Git owner generator 🔎
 Auto generate output contains file paths and owners of that files (copy paste to your repo without reformat). 
 Maximum 2 owners per file, specific number is under working :wink
 
-### Installation
-#### Make sure you have installed GO 1.18 on your machine
+## Installation <br />
+### Make sure you have installed GO 1.18 on your machine 
 - Install locally: <br>
-  1. Clone this repo <br>
-  2. At cloned repo: `go install` to install at your GO PATH <br>
-- Install globally:
-  1. **Set your GOPATH** in `zshrc`, `bash_rc`, etc,..
-  2. `go install github.com/nanxy-tran/contributor_scan` <br>
-### Usage
+  ```shell
+    git clone https://github.com/Nanxy-Tran/contributor_scan.git  
+    cd contributor_scan
+    go install
+  ```
+- Install globally: <br />
+  Make sure you et your **GOPATH** in `zshrc`, `bash_rc`, etc,..
+  ```shell
+    go install github.com/nanxy-tran/contributor_scan
+  ```
+  
+## Usage
 At your desired directory, run: <br>
-`contributor_scan git`
+```
+contributor_scan git
+```
 
 To retrieve number of files, run: <br>
-`contributor_scan`
+```
+contributor_scan
+```
 
-### Examples
+## Examples 
 Git generated output for Github owners: <br>
 
 ![img.png](img.png)
@@ -26,3 +35,6 @@ Git generated output for Github owners: <br>
 Total file count: <br>
 
 ![img_1.png](img_1.png)
+
+## Support if you like!
+Please ⭐️ this repository if this project helped you!
