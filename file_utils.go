@@ -3,54 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"os"
-	"strings"
+	"regexp"
 )
-
-var ignoreFiles = []string{".gitignore", ".git", ".idea", ".jest", ".codeclimate.yml", "node_modules", "android/", "ios/", "coverage/"}
-var typescriptFileExtensions = []string{".tsx", ".ts"}
-
-func scanFolder(root string, fileChan chan<- LineResultChannel) {
-	files, err := ioutil.ReadDir(root)
-
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-FILES_LOOP:
-	for _, file := range files {
-		var filePath string
-
-		if root == "./" {
-			filePath = root + file.Name()
-		} else {
-			filePath = root + "/" + file.Name()
-		}
-
-		for _, ignore := range ignoreFiles {
-			if strings.Contains(filePath, ignore) {
-				continue FILES_LOOP
-			}
-		}
-
-		if file.IsDir() {
-			scanFolder(filePath, fileChan)
-		} else {
-			for _, ext := range typescriptFileExtensions {
-				if strings.Contains(filePath, ext) {
-					fileChan <- filePath
-					continue FILES_LOOP
-				}
-			}
-		}
-	}
-
-	if root == "./" {
-		close(fileChan)
-	}
-}
 
 func readLines(path string) ([]string, error) {
 	file, err := os.Open(path)
@@ -67,3 +22,32 @@ func readLines(path string) ([]string, error) {
 	}
 	return lines, scanner.Err()
 }
+
+func checkLines(filePath string) <-chan string {
+	lineChan := make(chan string, 50)
+
+	fileLines, err := readLines(filePath)
+
+	if err != nil {
+		defer close(lineChan)
+		return lineChan
+	}
+
+	go func() {
+		defer close(lineChan)
+		regex := regexp.MustCompile(descriptionRegex)
+		for _, line := range fileLines {
+			descriptionLine := regex.FindString(line)
+			if descriptionLine != "" {
+				lineChan <- filePath
+				return
+			}
+		}
+
+		lineChan <- "NO DESCRIPTION FOUND"
+	}()
+
+	return lineChan
+}
+
+var descriptionRegex = "\\/\\*\\*"

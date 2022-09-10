@@ -2,24 +2,100 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 )
 
-type BlameResult struct {
+type LineResult struct {
 	FilePath string
 	Author   string
+	Output   string
 }
 
-func checkAuthor(filePath string) <-chan BlameResult {
-	authorChan := make(chan BlameResult, 50)
+type GitParser struct {
+	ignoreFiles []string
+}
+
+type GitProcessor struct{}
+
+func (parser *GitParser) construct() {
+	parser.ignoreFiles = []string{".gitignore", ".git", ".idea", ".jest", ".codeclimate.yml", "node_modules", "android/", "ios/", "coverage/"}
+}
+
+func (parser *GitParser) scanFolder(root string, fileChan chan<- string) {
+	files, err := os.ReadDir(root)
+
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+FILES_LOOP:
+	for _, file := range files {
+		var filePath string
+
+		if root == "./" {
+			filePath = root + file.Name()
+		} else {
+			filePath = root + "/" + file.Name()
+		}
+
+		for _, ignore := range parser.ignoreFiles {
+			if strings.Contains(filePath, ignore) {
+				continue FILES_LOOP
+			}
+		}
+
+		if file.IsDir() {
+			parser.scanFolder(filePath, fileChan)
+		} else {
+			fileChan <- filePath
+			continue FILES_LOOP
+		}
+	}
+
+	if root == "./" {
+		close(fileChan)
+	}
+}
+
+func (*GitProcessor) execute(filesChan <-chan string) {
+	var lineChans chan (<-chan LineResult)
+	var result []LineResult
+	lineChans = make(chan (<-chan LineResult), 50)
+
+	go func() {
+		defer close(lineChans)
+		for path := range filesChan {
+			lineChans <- checkAuthor(path)
+		}
+	}()
+
+	for lineChan := range lineChans {
+		select {
+		case line := <-lineChan:
+			result = append(result, line)
+		}
+	}
+
+	for lineChan := range lineChans {
+		select {
+		case line := <-lineChan:
+			result = append(result, line)
+		default:
+		}
+	}
+
+	generateGitOwnerOutput(result)
+}
+
+func checkAuthor(filePath string) <-chan LineResult {
+	authorChan := make(chan LineResult, 50)
 
 	go func() {
 		defer close(authorChan)
-		cmd := exec.Command("bash", "-c", "git blame "+filePath+" --porcelain | sed 's/author //p' | sort | uniq -c| sort -rn | head -n 1 | sed 's/[0-9]*//g'")
+		cmd := exec.Command("bash", "-c", "git blame "+filePath+" --line-porcelain | grep '^author ' | sort | uniq -c| sort -rn | head -n 2 | sed 's/[0-9]*//g' | sed 's/author*//g'")
 		output, err := cmd.CombinedOutput()
 
 		fmt.Println("Git blaming.... ", filePath)
@@ -33,38 +109,35 @@ func checkAuthor(filePath string) <-chan BlameResult {
 	return authorChan
 }
 
-func parseAuthor(output string, filePath string) BlameResult {
-	var outputArr = strings.Split(output, " ")
-	var result = BlameResult{
+func parseAuthor(output string, filePath string) LineResult {
+	var outputArr = strings.Split(strings.TrimSpace(output), "\n")
+
+	var result = LineResult{
 		FilePath: filePath,
+		Author:   "",
 	}
 
-	for _, item := range outputArr {
-		if item != "" {
-			result.Author = item
-			return result
+	if len(outputArr) == 0 {
+		return result
+	}
+
+	for _, author := range outputArr {
+		if result.Author != "" {
+			result.Author = result.Author + " " + fmt.Sprintf("@%s", strings.TrimSpace(author))
+		} else {
+			result.Author = fmt.Sprintf("@%s", strings.TrimSpace(author))
 		}
 	}
 
-	result.Author = ""
 	return result
 }
 
-func generateGitOwnerFile(owners []BlameResult, outputFileName string) string {
-	file, err := os.Create(outputFileName)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+func generateGitOwnerOutput(owners []LineResult) {
 	var message string
 	for _, owner := range owners {
-		message = message + fmt.Sprintf("%s @%s", owner.FilePath, owner.Author) + "\n"
+		message = message + fmt.Sprintf("%s %s", owner.FilePath, owner.Author) + "\n"
 	}
-
-	err = ioutil.WriteFile(file.Name(), []byte(message), 0644)
-	if err != nil {
-		panic(err)
-	}
-	return file.Name()
+	fmt.Println(message)
 }
 
 //var descriptionRegex = "\\/\\*\\*"
