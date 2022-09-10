@@ -10,6 +10,8 @@ type sortStruct struct {
 	Value int
 }
 
+type Contributions map[string]int
+
 func (array Contributions) sort() []sortStruct {
 
 	var collection []sortStruct
