@@ -12,5 +12,17 @@ Maximum 2 owners per file, specific number is under working :wink
   1. **Set your GOPATH** in `zshrc`, `bash_rc`, etc,..
   2. `go install github.com/nanxy-tran/contributor_scan` <br>
 ### Usage
-    At your desired directory: run `contributor_scan`.
+At your desired directory, run: <br>
+`contributor_scan git`
 
+To retrieve number of files, run: <br>
+`contributor_scan`
+
+### Examples
+Git generated output for Github owners: <br>
+
+![img.png](img.png)
+
+Total file count: <br>
+
+![img_1.png](img_1.png)
