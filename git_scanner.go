@@ -87,7 +87,7 @@ func (*GitProcessor) execute(filesChan <-chan string) {
 		}
 	}
 
-	generateGitOwnerFile(result, "git_owner.txt")
+	generateGitOwnerOutput(result)
 }
 
 func checkAuthor(filePath string) <-chan LineResult {
@@ -132,21 +132,12 @@ func parseAuthor(output string, filePath string) LineResult {
 	return result
 }
 
-func generateGitOwnerFile(owners []LineResult, outputFileName string) string {
-	file, err := os.Create(outputFileName)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+func generateGitOwnerOutput(owners []LineResult) {
 	var message string
 	for _, owner := range owners {
 		message = message + fmt.Sprintf("%s %s", owner.FilePath, owner.Author) + "\n"
 	}
-
-	err = os.WriteFile(file.Name(), []byte(message), 0644)
-	if err != nil {
-		panic(err)
-	}
-	return file.Name()
+	fmt.Println(message)
 }
 
 //var descriptionRegex = "\\/\\*\\*"
