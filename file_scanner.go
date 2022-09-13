@@ -11,10 +11,13 @@ type LineParser struct {
 	ignoreFiles []string
 }
 
-type LineProcessor struct{}
+type LineProcessor struct {
+	method string
+}
 
+//TODO: make this as args for many language type
 func (parser *LineParser) construct() {
-	parser.ignoreFiles = []string{".gitignore", ".git", ".idea", ".jest", ".codeclimate.yml", "node_modules", "android/", "ios/", "coverage/"}
+	parser.ignoreFiles = []string{".gitignore", ".git", ".idea", ".jest", ".codeclimate.yml", "node_modules", "android/", "ios/", "coverage/", "allure", "artifacts"}
 }
 
 func (parser *LineParser) scanFolder(root string, fileChan chan<- string) {
@@ -44,7 +47,6 @@ FILES_LOOP:
 			parser.scanFolder(filePath, fileChan)
 		} else {
 			fileChan <- filePath
-			continue FILES_LOOP
 		}
 	}
 
@@ -54,7 +56,14 @@ FILES_LOOP:
 }
 
 func (lineProcessor *LineProcessor) execute(filesChan <-chan string) {
-	//TODO: multiple method
+	if lineProcessor.method == "line" {
+		countLines(filesChan)
+	} else {
+		countFiles(filesChan)
+	}
+}
+
+func countFiles(filesChan <-chan string) {
 	count := 0
 	for range filesChan {
 		count++
@@ -62,13 +71,25 @@ func (lineProcessor *LineProcessor) execute(filesChan <-chan string) {
 	fmt.Println(count)
 }
 
-//TODO: count total line of code
-//func countLines(path string) {
-//
-//}
-//var descriptionRegex = "\\/\\*\\*"
-//func printContributors(contributions []sortStruct) {
-//	for _, contributor := range contributions {
-//		fmt.Println("Contributor: " + contributor.Key + " has contributed " + strconv.Itoa(contributor.Value) + " files")
-//	}
-//}
+func countLines(fileChan <-chan string) {
+	var result = 0
+	lineChan := make(chan []string, 50)
+
+	go func() {
+		defer close(lineChan)
+		for filePath := range fileChan {
+			lineCount, err := readLines(filePath)
+			if err != nil {
+				continue
+			} else {
+				lineChan <- lineCount
+			}
+		}
+	}()
+
+	for lines := range lineChan {
+		result = result + len(lines)
+	}
+
+	fmt.Printf("Total line of code: %d \n", result)
+}

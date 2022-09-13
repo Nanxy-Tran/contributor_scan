@@ -8,5 +8,5 @@ func fileProcessorFactory(method string) FileProcessor {
 	if method == "owner" {
 		return &GitProcessor{}
 	}
-	return &LineProcessor{}
+	return &LineProcessor{method: method}
 }

@@ -14,9 +14,13 @@ func main() {
 	var parserType = ""
 	var executeMethod = ""
 
-	if len(cliArgs) > 0 && cliArgs[0] == "git" {
+	if len(cliArgs) > 0 {
 		parserType = cliArgs[0]
-		executeMethod = "owner"
+		if cliArgs[0] == "line" {
+			executeMethod = cliArgs[0]
+		} else {
+			executeMethod = "owner"
+		}
 	}
 
 	filesChan := make(chan string)
@@ -27,5 +31,5 @@ func main() {
 	go parser.scanFolder("./", filesChan)
 
 	processor.execute(filesChan)
-	fmt.Printf("Executed in %s", time.Since(start))
+	fmt.Printf("Executed in %s \n", time.Since(start))
 }
