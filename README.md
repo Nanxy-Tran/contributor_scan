@@ -18,7 +18,7 @@ go install github.com/nanxy-tran/contributor_scan
 ```
   
 ## Usage
-At your desired directory, run: <br>
+At your desired directory, to retrieve git owner output, run: <br>
 ```
 contributor_scan git
 ```
@@ -26,6 +26,11 @@ contributor_scan git
 To retrieve number of files, run: <br>
 ```
 contributor_scan
+```
+
+Retrieve number of lines, run: <br>
+```
+contributor_scan line
 ```
 
 ## Examples 
@@ -36,6 +41,7 @@ Git generated output for Github owners: <br>
 Total file count: <br>
 
 ![img_1.png](img_1.png)
+
 
 ## Support if you like!
 Please ⭐️ this repository if this project helped you!
