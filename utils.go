@@ -37,3 +37,7 @@ func filter(arr []string, key string) []string {
 	}
 	return result
 }
+
+func removeLastElement[T any](slice []T) []T {
+	return slice[:len(slice)-1]
+}
