@@ -4,6 +4,10 @@ Maximum 2 owners per file, specific number is under working :wink
 
 ## Installation <br /> 
 *Make sure you have installed GO 1.18 on your machine*
+If not, add this line to your `zsh_rc` or `bash_rc`
+```
+export PATH=$PATH:$HOME/go/bin
+```
 ### Install locally
 ```shell
 git clone https://github.com/Nanxy-Tran/contributor_scan.git  
@@ -14,7 +18,7 @@ go install
 ### Install globally
 Make sure you et your **GOPATH** in `zshrc`, `bash_rc`, etc,..
 ```shell
-go install github.com/nanxy-tran/contributor_scan
+go install github.com/nanxy-tran/contributor_scan@latest
 ```
   
 ## Usage
