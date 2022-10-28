@@ -3,7 +3,7 @@ Auto generate output contains file paths and owners of that files (copy paste to
 Maximum 2 owners per file, specific number is under working :wink
 
 ## Installation <br /> 
-*Make sure you have installed GO 1.18 on your machine*
+*Make sure you have installed GO 1.18 on your machine and export the path as well*
 If not, add this line to your `zsh_rc` or `bash_rc`
 ```
 export PATH=$PATH:$HOME/go/bin
